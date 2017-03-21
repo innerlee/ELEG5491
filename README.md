@@ -2,7 +2,7 @@
 
 All models are trained using [``Parrots``](http://parrotsdnn.org/).
 Traning settings can be found in ``session.yaml``s.
-Code for filter visulization is [here](plot.jl). It uses [julia](julialang.org).
+Code for filter visulization is [here](plot.jl). It uses [julia](http://julialang.org/).
 
 ## Network structures
 
