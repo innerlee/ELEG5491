@@ -1,6 +1,16 @@
 # ELEG5491
 
-## Training curves referenced in the hw
+All models are trained using [``Parrots``](http://parrotsdnn.org/).
+
+## Network structures
+
+* Original: [code](net.original.py), [pdf](net.original.pdf).
+* With msra init: [code](net.msra.py), [pdf](net.msra.pdf).
+* With BN: [code](net.bn.py), [pdf](net.bn.pdf)
+
+Note: See [runs](runs) folder for training logs.
+
+## Training curves referenced in the report
 
 Note: access to the links are restricted to campus networks.
 
