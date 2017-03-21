@@ -1,0 +1,32 @@
+digraph {
+	graph [rankdir=BT]
+	conv1 [fillcolor=skyblue shape=rect style=filled]
+	relu1 [fillcolor=aquamarine shape=rect style=filled]
+	pool1 [fillcolor=salmon shape=rect style=filled]
+	pool1relu [fillcolor=aquamarine shape=rect style=filled]
+	conv2 [fillcolor=skyblue shape=rect style=filled]
+	relu2 [fillcolor=aquamarine shape=rect style=filled]
+	pool2 [fillcolor=salmon shape=rect style=filled]
+	pool2relu [fillcolor=aquamarine shape=rect style=filled]
+	fc1 [fillcolor=skyblue shape=rect style=filled]
+	fc1relu [fillcolor=aquamarine shape=rect style=filled]
+	fc2 [fillcolor=skyblue shape=rect style=filled]
+	fc2relu [fillcolor=aquamarine shape=rect style=filled]
+	fc [fillcolor=skyblue shape=rect style=filled]
+	loss [fillcolor=orange shape=rect style=filled]
+	accuracy_top1 [fillcolor=orange shape=rect style=filled]
+		conv1 -> relu1
+		relu1 -> pool1
+		pool1 -> pool1relu
+		pool1relu -> conv2
+		conv2 -> relu2
+		relu2 -> pool2
+		pool2 -> pool2relu
+		pool2relu -> fc1
+		fc1 -> fc1relu
+		fc1relu -> fc2
+		fc2 -> fc2relu
+		fc2relu -> fc
+		fc -> loss
+		fc -> accuracy_top1
+}

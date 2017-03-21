@@ -1,0 +1,745 @@
+2017-03-21 13:55:35,504 INFO connecting pavi service http://pavi.parrotsdnn.org/log
+2017-03-21 13:55:35,552 INFO pavi service connected, instance_id: 4c57f6ad900d47aa9962e278b63535dc
+2017-03-21 13:55:35,578 INFO model name: net1_aug
+2017-03-21 13:55:35,579 DEBUG name: "net1_aug"
+inputs:
+  - { id: data , spec: "Float32(32, 32, 3, _)" }
+  - { id: label, spec: "Uint32(1, _)" }
+params:
+  - { id: conv1.w, spec: "Float32(5, 5, 3, 6)" , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn1.s  , spec: "Float32(6)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.b  , spec: "Float32(6)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.h  , spec: "Float32(12)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: conv2.w, spec: "Float32(5, 5, 6, 16)", learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn2.s  , spec: "Float32(16)"         , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.b  , spec: "Float32(16)"         , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.h  , spec: "Float32(32)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc1.w  , spec: "Float32(400, 120)"   , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc1.b  , spec: "Float32(120, 1)"     , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn3.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc2.w  , spec: "Float32(120, 84)"    , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc2.b  , spec: "Float32(84, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn4.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc.w   , spec: "Float32(84, 10)"     , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc.b   , spec: "Float32(10, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+layers:
+  - { id: conv1, expr: "conv1 = Convolution(data, @conv1.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 6, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn1, expr: "bn1 = BN(conv1, @bn1.s, @bn1.b, @bn1.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu1, expr: "bn1 = ReLU(bn1)" }
+  - { id: pool1, expr: "pool1 = Pooling(bn1)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool1relu, expr: "pool1 = ReLU(pool1)" }
+  - { id: conv2, expr: "conv2 = Convolution(pool1, @conv2.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 16, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn2, expr: "bn2 = BN(conv2, @bn2.s, @bn2.b, @bn2.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu2, expr: "bn2 = ReLU(bn2)" }
+  - { id: pool2, expr: "pool2 = Pooling(bn2)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool2relu, expr: "pool2 = ReLU(pool2)" }
+  - { id: fc1, expr: "fc1 = FullyConnected(pool2, @fc1.w, @fc1.b)",
+      attrs: {slice_axis: -2, num_output: 120} }
+  - { id: bn3, expr: "bn3 = BN(fc1, @bn3.s, @bn3.b, @bn3.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc1relu, expr: "bn3 = ReLU(bn3)" }
+  - { id: fc2, expr: "fc2 = FullyConnected(bn3, @fc2.w, @fc2.b)",
+      attrs: {slice_axis: -2, num_output: 84} }
+  - { id: bn4, expr: "bn4 = BN(fc2, @bn4.s, @bn4.b, @bn4.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc2relu, expr: "bn4 = ReLU(bn4)" }
+  - { id: fc, expr: "fc = FullyConnected(bn4, @fc.w, @fc.b)",
+      attrs: {slice_axis: -2, num_output: 10} }
+  - { id: loss, expr: "loss = SoftmaxWithLoss(fc, label)",
+      attrs: {axis: 0} }
+  - { id: accuracy_top1, expr: "accuracy_top1 = Accuracy(fc, label)",
+      attrs: {top_k: 1, slice_axis: 0} }
+flows:
+  - { name: main, inputs: [data, label], outputs: [loss, accuracy_top1], losses: [loss * 1, accuracy_top1 * 1] }
+
+2017-03-21 13:55:58,739 INFO connecting pavi service http://pavi.parrotsdnn.org/log
+2017-03-21 13:55:58,773 INFO pavi service connected, instance_id: 7aa3378cb15e4157a69dbd4be24eb824
+2017-03-21 13:55:58,792 INFO model name: net1_aug
+2017-03-21 13:55:58,793 DEBUG name: "net1_aug"
+inputs:
+  - { id: data , spec: "Float32(32, 32, 3, _)" }
+  - { id: label, spec: "Uint32(1, _)" }
+params:
+  - { id: conv1.w, spec: "Float32(5, 5, 3, 6)" , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn1.s  , spec: "Float32(6)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.b  , spec: "Float32(6)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.h  , spec: "Float32(12)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: conv2.w, spec: "Float32(5, 5, 6, 16)", learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn2.s  , spec: "Float32(16)"         , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.b  , spec: "Float32(16)"         , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.h  , spec: "Float32(32)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc1.w  , spec: "Float32(400, 120)"   , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc1.b  , spec: "Float32(120, 1)"     , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn3.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc2.w  , spec: "Float32(120, 84)"    , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc2.b  , spec: "Float32(84, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn4.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc.w   , spec: "Float32(84, 10)"     , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc.b   , spec: "Float32(10, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+layers:
+  - { id: conv1, expr: "conv1 = Convolution(data, @conv1.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 6, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn1, expr: "bn1 = BN(conv1, @bn1.s, @bn1.b, @bn1.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu1, expr: "bn1 = ReLU(bn1)" }
+  - { id: pool1, expr: "pool1 = Pooling(bn1)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool1relu, expr: "pool1 = ReLU(pool1)" }
+  - { id: conv2, expr: "conv2 = Convolution(pool1, @conv2.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 16, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn2, expr: "bn2 = BN(conv2, @bn2.s, @bn2.b, @bn2.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu2, expr: "bn2 = ReLU(bn2)" }
+  - { id: pool2, expr: "pool2 = Pooling(bn2)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool2relu, expr: "pool2 = ReLU(pool2)" }
+  - { id: fc1, expr: "fc1 = FullyConnected(pool2, @fc1.w, @fc1.b)",
+      attrs: {slice_axis: -2, num_output: 120} }
+  - { id: bn3, expr: "bn3 = BN(fc1, @bn3.s, @bn3.b, @bn3.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc1relu, expr: "bn3 = ReLU(bn3)" }
+  - { id: fc2, expr: "fc2 = FullyConnected(bn3, @fc2.w, @fc2.b)",
+      attrs: {slice_axis: -2, num_output: 84} }
+  - { id: bn4, expr: "bn4 = BN(fc2, @bn4.s, @bn4.b, @bn4.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc2relu, expr: "bn4 = ReLU(bn4)" }
+  - { id: fc, expr: "fc = FullyConnected(bn4, @fc.w, @fc.b)",
+      attrs: {slice_axis: -2, num_output: 10} }
+  - { id: loss, expr: "loss = SoftmaxWithLoss(fc, label)",
+      attrs: {axis: 0} }
+  - { id: accuracy_top1, expr: "accuracy_top1 = Accuracy(fc, label)",
+      attrs: {top_k: 1, slice_axis: 0} }
+flows:
+  - { name: main, inputs: [data, label], outputs: [loss, accuracy_top1], losses: [loss * 1, accuracy_top1 * 1] }
+
+2017-03-21 13:56:00,674 INFO train: iter: 250, lr: 0.001000, ave loss: 1.88610636324
+2017-03-21 13:56:00,674 INFO 	loss: 1.886106
+2017-03-21 13:56:00,674 INFO 	accuracy_top1: nan
+2017-03-21 13:56:01,904 INFO train: iter: 500, lr: 0.001000, ave loss: 1.51078338063
+2017-03-21 13:56:01,904 INFO 	loss: 1.510783
+2017-03-21 13:56:01,904 INFO 	accuracy_top1: nan
+2017-03-21 13:56:02,048 INFO val: iter: 500, lr: 0.001000, ave loss: 1.31718560308
+2017-03-21 13:56:02,049 INFO 	loss: 1.317186
+2017-03-21 13:56:02,049 INFO 	accuracy_top1: 0.520800
+2017-03-21 13:56:03,248 INFO train: iter: 750, lr: 0.001000, ave loss: 1.37734768546
+2017-03-21 13:56:03,248 INFO 	loss: 1.377348
+2017-03-21 13:56:03,249 INFO 	accuracy_top1: nan
+2017-03-21 13:56:04,398 INFO train: iter: 1000, lr: 0.001000, ave loss: 1.28704773748
+2017-03-21 13:56:04,398 INFO 	loss: 1.287048
+2017-03-21 13:56:04,398 INFO 	accuracy_top1: nan
+2017-03-21 13:56:04,535 INFO val: iter: 1000, lr: 0.001000, ave loss: 1.15681427717
+2017-03-21 13:56:04,535 INFO 	loss: 1.156814
+2017-03-21 13:56:04,535 INFO 	accuracy_top1: 0.586400
+2017-03-21 13:56:05,817 INFO train: iter: 1250, lr: 0.001000, ave loss: 1.23214359146
+2017-03-21 13:56:05,818 INFO 	loss: 1.232144
+2017-03-21 13:56:05,818 INFO 	accuracy_top1: nan
+2017-03-21 13:56:07,089 INFO train: iter: 1500, lr: 0.001000, ave loss: 1.18777146423
+2017-03-21 13:56:07,090 INFO 	loss: 1.187771
+2017-03-21 13:56:07,090 INFO 	accuracy_top1: nan
+2017-03-21 13:56:07,233 INFO val: iter: 1500, lr: 0.001000, ave loss: 1.10247297958
+2017-03-21 13:56:07,233 INFO 	loss: 1.102473
+2017-03-21 13:56:07,233 INFO 	accuracy_top1: 0.616500
+2017-03-21 13:56:08,486 INFO train: iter: 1750, lr: 0.001000, ave loss: 1.15133941504
+2017-03-21 13:56:08,486 INFO 	loss: 1.151339
+2017-03-21 13:56:08,486 INFO 	accuracy_top1: nan
+2017-03-21 13:56:09,754 INFO train: iter: 2000, lr: 0.001000, ave loss: 1.12040578693
+2017-03-21 13:56:09,754 INFO 	loss: 1.120406
+2017-03-21 13:56:09,754 INFO 	accuracy_top1: nan
+2017-03-21 13:56:09,908 INFO val: iter: 2000, lr: 0.001000, ave loss: 1.01662669331
+2017-03-21 13:56:09,909 INFO 	loss: 1.016627
+2017-03-21 13:56:09,909 INFO 	accuracy_top1: 0.637200
+2017-03-21 13:56:11,164 INFO train: iter: 2250, lr: 0.001000, ave loss: 1.10306682095
+2017-03-21 13:56:11,164 INFO 	loss: 1.103067
+2017-03-21 13:56:11,164 INFO 	accuracy_top1: nan
+2017-03-21 13:56:12,348 INFO train: iter: 2500, lr: 0.001000, ave loss: 1.06616316232
+2017-03-21 13:56:12,348 INFO 	loss: 1.066163
+2017-03-21 13:56:12,348 INFO 	accuracy_top1: nan
+2017-03-21 13:56:12,467 INFO val: iter: 2500, lr: 0.001000, ave loss: 0.975098308921
+2017-03-21 13:56:12,468 INFO 	loss: 0.975098
+2017-03-21 13:56:12,468 INFO 	accuracy_top1: 0.656100
+2017-03-21 13:56:13,726 INFO train: iter: 2750, lr: 0.001000, ave loss: 1.06900661355
+2017-03-21 13:56:13,727 INFO 	loss: 1.069007
+2017-03-21 13:56:13,727 INFO 	accuracy_top1: nan
+2017-03-21 13:56:14,918 INFO train: iter: 3000, lr: 0.001000, ave loss: 1.03649550483
+2017-03-21 13:56:14,919 INFO 	loss: 1.036496
+2017-03-21 13:56:14,919 INFO 	accuracy_top1: nan
+2017-03-21 13:56:15,028 INFO val: iter: 3000, lr: 0.001000, ave loss: 0.944867742807
+2017-03-21 13:56:15,028 INFO 	loss: 0.944868
+2017-03-21 13:56:15,028 INFO 	accuracy_top1: 0.667300
+2017-03-21 13:56:16,330 INFO train: iter: 3250, lr: 0.001000, ave loss: 1.03212952554
+2017-03-21 13:56:16,330 INFO 	loss: 1.032130
+2017-03-21 13:56:16,331 INFO 	accuracy_top1: nan
+2017-03-21 13:56:17,611 INFO train: iter: 3500, lr: 0.001000, ave loss: 1.01606206284
+2017-03-21 13:56:17,612 INFO 	loss: 1.016062
+2017-03-21 13:56:17,612 INFO 	accuracy_top1: nan
+2017-03-21 13:56:17,735 INFO val: iter: 3500, lr: 0.001000, ave loss: 0.90913560763
+2017-03-21 13:56:17,735 INFO 	loss: 0.909136
+2017-03-21 13:56:17,735 INFO 	accuracy_top1: 0.678400
+2017-03-21 13:56:18,927 INFO train: iter: 3750, lr: 0.001000, ave loss: 0.99851266405
+2017-03-21 13:56:18,928 INFO 	loss: 0.998513
+2017-03-21 13:56:18,928 INFO 	accuracy_top1: nan
+2017-03-21 13:56:20,127 INFO train: iter: 4000, lr: 0.001000, ave loss: 0.997847885147
+2017-03-21 13:56:20,128 INFO 	loss: 0.997848
+2017-03-21 13:56:20,128 INFO 	accuracy_top1: nan
+2017-03-21 13:56:20,239 INFO val: iter: 4000, lr: 0.001000, ave loss: 0.934276673198
+2017-03-21 13:56:20,240 INFO 	loss: 0.934277
+2017-03-21 13:56:20,240 INFO 	accuracy_top1: 0.666300
+2017-03-21 13:56:21,565 INFO train: iter: 4250, lr: 0.001000, ave loss: 0.992491243824
+2017-03-21 13:56:21,565 INFO 	loss: 0.992491
+2017-03-21 13:56:21,566 INFO 	accuracy_top1: nan
+2017-03-21 13:56:22,865 INFO train: iter: 4500, lr: 0.001000, ave loss: 0.975107637078
+2017-03-21 13:56:22,865 INFO 	loss: 0.975108
+2017-03-21 13:56:22,865 INFO 	accuracy_top1: nan
+2017-03-21 13:56:23,013 INFO val: iter: 4500, lr: 0.001000, ave loss: 0.88722256124
+2017-03-21 13:56:23,013 INFO 	loss: 0.887223
+2017-03-21 13:56:23,013 INFO 	accuracy_top1: 0.686800
+2017-03-21 13:56:24,210 INFO train: iter: 4750, lr: 0.001000, ave loss: 0.965150230497
+2017-03-21 13:56:24,210 INFO 	loss: 0.965150
+2017-03-21 13:56:24,210 INFO 	accuracy_top1: nan
+2017-03-21 13:56:25,389 INFO train: iter: 5000, lr: 0.001000, ave loss: 0.959835661501
+2017-03-21 13:56:25,389 INFO 	loss: 0.959836
+2017-03-21 13:56:25,389 INFO 	accuracy_top1: nan
+2017-03-21 13:56:25,507 INFO val: iter: 5000, lr: 0.001000, ave loss: 0.865799921006
+2017-03-21 13:56:25,507 INFO 	loss: 0.865800
+2017-03-21 13:56:25,508 INFO 	accuracy_top1: 0.694300
+2017-03-21 13:56:26,843 INFO train: iter: 5250, lr: 0.001000, ave loss: 0.959363896653
+2017-03-21 13:56:26,844 INFO 	loss: 0.959364
+2017-03-21 13:56:26,844 INFO 	accuracy_top1: nan
+2017-03-21 13:56:28,044 INFO train: iter: 5500, lr: 0.001000, ave loss: 0.953939196408
+2017-03-21 13:56:28,045 INFO 	loss: 0.953939
+2017-03-21 13:56:28,045 INFO 	accuracy_top1: nan
+2017-03-21 13:56:28,166 INFO val: iter: 5500, lr: 0.001000, ave loss: 0.834056902677
+2017-03-21 13:56:28,166 INFO 	loss: 0.834057
+2017-03-21 13:56:28,166 INFO 	accuracy_top1: 0.704100
+2017-03-21 13:56:29,355 INFO train: iter: 5750, lr: 0.001000, ave loss: 0.942648564219
+2017-03-21 13:56:29,355 INFO 	loss: 0.942649
+2017-03-21 13:56:29,356 INFO 	accuracy_top1: nan
+2017-03-21 13:56:30,619 INFO train: iter: 6000, lr: 0.001000, ave loss: 0.936021923751
+2017-03-21 13:56:30,620 INFO 	loss: 0.936022
+2017-03-21 13:56:30,620 INFO 	accuracy_top1: nan
+2017-03-21 13:56:30,773 INFO val: iter: 6000, lr: 0.001000, ave loss: 0.823978659511
+2017-03-21 13:56:30,773 INFO 	loss: 0.823979
+2017-03-21 13:56:30,773 INFO 	accuracy_top1: 0.708300
+2017-03-21 13:56:32,069 INFO train: iter: 6250, lr: 0.001000, ave loss: 0.93034527199
+2017-03-21 13:56:32,069 INFO 	loss: 0.930345
+2017-03-21 13:56:32,069 INFO 	accuracy_top1: nan
+2017-03-21 13:56:33,361 INFO train: iter: 6500, lr: 0.001000, ave loss: 0.916518857047
+2017-03-21 13:56:33,361 INFO 	loss: 0.916519
+2017-03-21 13:56:33,361 INFO 	accuracy_top1: nan
+2017-03-21 13:56:33,493 INFO val: iter: 6500, lr: 0.001000, ave loss: 0.820938162506
+2017-03-21 13:56:33,494 INFO 	loss: 0.820938
+2017-03-21 13:56:33,494 INFO 	accuracy_top1: 0.713200
+2017-03-21 13:56:34,724 INFO train: iter: 6750, lr: 0.001000, ave loss: 0.926432076633
+2017-03-21 13:56:34,725 INFO 	loss: 0.926432
+2017-03-21 13:56:34,725 INFO 	accuracy_top1: nan
+2017-03-21 13:56:36,008 INFO train: iter: 7000, lr: 0.001000, ave loss: 0.918727986455
+2017-03-21 13:56:36,008 INFO 	loss: 0.918728
+2017-03-21 13:56:36,008 INFO 	accuracy_top1: nan
+2017-03-21 13:56:36,125 INFO val: iter: 7000, lr: 0.001000, ave loss: 0.827011945099
+2017-03-21 13:56:36,125 INFO 	loss: 0.827012
+2017-03-21 13:56:36,125 INFO 	accuracy_top1: 0.708800
+2017-03-21 13:56:37,384 INFO train: iter: 7250, lr: 0.001000, ave loss: 0.912701802537
+2017-03-21 13:56:37,385 INFO 	loss: 0.912702
+2017-03-21 13:56:37,385 INFO 	accuracy_top1: nan
+2017-03-21 13:56:38,592 INFO train: iter: 7500, lr: 0.001000, ave loss: 0.902796965435
+2017-03-21 13:56:38,592 INFO 	loss: 0.902797
+2017-03-21 13:56:38,592 INFO 	accuracy_top1: nan
+2017-03-21 13:56:38,719 INFO val: iter: 7500, lr: 0.001000, ave loss: 0.843886690587
+2017-03-21 13:56:38,720 INFO 	loss: 0.843887
+2017-03-21 13:56:38,720 INFO 	accuracy_top1: 0.705300
+2017-03-21 13:56:39,483 ERROR KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/lizz/parrots/parrots/python/pyparrots/dnn/runner.py", line 177, in run
+    for logs in policy.run():
+  File "/home/lizz/parrots/parrots/python/pyparrots/dnn/flowpolicies/basepolicy.py", line 19, in run
+    for logs in self.iter():
+  File "/home/lizz/parrots/parrots/python/pyparrots/dnn/flowpolicies/iterate.py", line 47, in iter
+    self.flow.iterate()
+KeyboardInterrupt
+2017-03-21 13:56:53,997 INFO connecting pavi service http://pavi.parrotsdnn.org/log
+2017-03-21 13:56:54,029 INFO pavi service connected, instance_id: a0c4ae1ad2a64dabbcf4e744f83964bd
+2017-03-21 13:56:54,048 INFO model name: net1_aug
+2017-03-21 13:56:54,049 DEBUG name: "net1_aug"
+inputs:
+  - { id: data , spec: "Float32(32, 32, 3, _)" }
+  - { id: label, spec: "Uint32(1, _)" }
+params:
+  - { id: conv1.w, spec: "Float32(5, 5, 3, 6)" , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn1.s  , spec: "Float32(6)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.b  , spec: "Float32(6)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.h  , spec: "Float32(12)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: conv2.w, spec: "Float32(5, 5, 6, 16)", learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn2.s  , spec: "Float32(16)"         , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.b  , spec: "Float32(16)"         , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.h  , spec: "Float32(32)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc1.w  , spec: "Float32(400, 120)"   , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc1.b  , spec: "Float32(120, 1)"     , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn3.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc2.w  , spec: "Float32(120, 84)"    , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc2.b  , spec: "Float32(84, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn4.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc.w   , spec: "Float32(84, 10)"     , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc.b   , spec: "Float32(10, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+layers:
+  - { id: conv1, expr: "conv1 = Convolution(data, @conv1.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 6, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn1, expr: "bn1 = BN(conv1, @bn1.s, @bn1.b, @bn1.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu1, expr: "bn1 = ReLU(bn1)" }
+  - { id: pool1, expr: "pool1 = Pooling(bn1)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool1relu, expr: "pool1 = ReLU(pool1)" }
+  - { id: conv2, expr: "conv2 = Convolution(pool1, @conv2.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 16, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn2, expr: "bn2 = BN(conv2, @bn2.s, @bn2.b, @bn2.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu2, expr: "bn2 = ReLU(bn2)" }
+  - { id: pool2, expr: "pool2 = Pooling(bn2)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool2relu, expr: "pool2 = ReLU(pool2)" }
+  - { id: fc1, expr: "fc1 = FullyConnected(pool2, @fc1.w, @fc1.b)",
+      attrs: {slice_axis: -2, num_output: 120} }
+  - { id: bn3, expr: "bn3 = BN(fc1, @bn3.s, @bn3.b, @bn3.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc1relu, expr: "bn3 = ReLU(bn3)" }
+  - { id: fc2, expr: "fc2 = FullyConnected(bn3, @fc2.w, @fc2.b)",
+      attrs: {slice_axis: -2, num_output: 84} }
+  - { id: bn4, expr: "bn4 = BN(fc2, @bn4.s, @bn4.b, @bn4.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc2relu, expr: "bn4 = ReLU(bn4)" }
+  - { id: fc, expr: "fc = FullyConnected(bn4, @fc.w, @fc.b)",
+      attrs: {slice_axis: -2, num_output: 10} }
+  - { id: loss, expr: "loss = SoftmaxWithLoss(fc, label)",
+      attrs: {axis: 0} }
+  - { id: accuracy_top1, expr: "accuracy_top1 = Accuracy(fc, label)",
+      attrs: {top_k: 1, slice_axis: 0} }
+flows:
+  - { name: main, inputs: [data, label], outputs: [loss, accuracy_top1], losses: [loss * 1, accuracy_top1 * 1] }
+
+2017-03-21 13:56:55,563 INFO train: iter: 250, lr: 0.001000, ave loss: 1.91880625099
+2017-03-21 13:56:55,563 INFO 	loss: 1.918806
+2017-03-21 13:56:55,563 INFO 	accuracy_top1: 0.293734
+2017-03-21 13:56:56,792 INFO train: iter: 500, lr: 0.001000, ave loss: 1.52513074654
+2017-03-21 13:56:56,792 INFO 	loss: 1.525131
+2017-03-21 13:56:56,792 INFO 	accuracy_top1: 0.439156
+2017-03-21 13:56:56,958 INFO val: iter: 500, lr: 0.001000, ave loss: 1.34996686578
+2017-03-21 13:56:56,958 INFO 	loss: 1.349967
+2017-03-21 13:56:56,958 INFO 	accuracy_top1: nan
+2017-03-21 13:56:58,275 INFO train: iter: 750, lr: 0.001000, ave loss: 1.38790250519
+2017-03-21 13:56:58,275 INFO 	loss: 1.387903
+2017-03-21 13:56:58,275 INFO 	accuracy_top1: 0.492781
+2017-03-21 13:56:59,560 INFO train: iter: 1000, lr: 0.001000, ave loss: 1.29953255799
+2017-03-21 13:56:59,560 INFO 	loss: 1.299533
+2017-03-21 13:56:59,560 INFO 	accuracy_top1: 0.529844
+2017-03-21 13:56:59,683 INFO val: iter: 1000, lr: 0.001000, ave loss: 1.15589779168
+2017-03-21 13:56:59,683 INFO 	loss: 1.155898
+2017-03-21 13:56:59,683 INFO 	accuracy_top1: nan
+2017-03-21 13:57:00,950 INFO train: iter: 1250, lr: 0.001000, ave loss: 1.23423030376
+2017-03-21 13:57:00,951 INFO 	loss: 1.234230
+2017-03-21 13:57:00,951 INFO 	accuracy_top1: 0.557547
+2017-03-21 13:57:02,241 INFO train: iter: 1500, lr: 0.001000, ave loss: 1.19229931891
+2017-03-21 13:57:02,241 INFO 	loss: 1.192299
+2017-03-21 13:57:02,241 INFO 	accuracy_top1: 0.575016
+2017-03-21 13:57:02,395 INFO val: iter: 1500, lr: 0.001000, ave loss: 1.09805750996
+2017-03-21 13:57:02,396 INFO 	loss: 1.098058
+2017-03-21 13:57:02,396 INFO 	accuracy_top1: nan
+2017-03-21 13:57:03,667 INFO train: iter: 1750, lr: 0.001000, ave loss: 1.15001072714
+2017-03-21 13:57:03,668 INFO 	loss: 1.150011
+2017-03-21 13:57:03,668 INFO 	accuracy_top1: 0.589719
+2017-03-21 13:57:04,985 INFO train: iter: 2000, lr: 0.001000, ave loss: 1.13735160559
+2017-03-21 13:57:04,986 INFO 	loss: 1.137352
+2017-03-21 13:57:04,986 INFO 	accuracy_top1: 0.593625
+2017-03-21 13:57:05,118 INFO val: iter: 2000, lr: 0.001000, ave loss: 1.00934507847
+2017-03-21 13:57:05,119 INFO 	loss: 1.009345
+2017-03-21 13:57:05,119 INFO 	accuracy_top1: nan
+2017-03-21 13:57:06,310 INFO train: iter: 2250, lr: 0.001000, ave loss: 1.10325195324
+2017-03-21 13:57:06,310 INFO 	loss: 1.103252
+2017-03-21 13:57:06,311 INFO 	accuracy_top1: 0.605281
+2017-03-21 13:57:07,516 INFO train: iter: 2500, lr: 0.001000, ave loss: 1.07709024605
+2017-03-21 13:57:07,517 INFO 	loss: 1.077090
+2017-03-21 13:57:07,517 INFO 	accuracy_top1: 0.616000
+2017-03-21 13:57:07,648 INFO val: iter: 2500, lr: 0.001000, ave loss: 1.03822674379
+2017-03-21 13:57:07,648 INFO 	loss: 1.038227
+2017-03-21 13:57:07,649 INFO 	accuracy_top1: nan
+2017-03-21 13:57:08,897 INFO train: iter: 2750, lr: 0.001000, ave loss: 1.06759757951
+2017-03-21 13:57:08,898 INFO 	loss: 1.067598
+2017-03-21 13:57:08,898 INFO 	accuracy_top1: 0.621172
+2017-03-21 13:57:10,157 INFO train: iter: 3000, lr: 0.001000, ave loss: 1.05118071622
+2017-03-21 13:57:10,157 INFO 	loss: 1.051181
+2017-03-21 13:57:10,157 INFO 	accuracy_top1: 0.626156
+2017-03-21 13:57:10,274 INFO val: iter: 3000, lr: 0.001000, ave loss: 0.951141795516
+2017-03-21 13:57:10,275 INFO 	loss: 0.951142
+2017-03-21 13:57:10,275 INFO 	accuracy_top1: nan
+2017-03-21 13:57:11,608 INFO train: iter: 3250, lr: 0.001000, ave loss: 1.03223093042
+2017-03-21 13:57:11,608 INFO 	loss: 1.032231
+2017-03-21 13:57:11,608 INFO 	accuracy_top1: 0.634594
+2017-03-21 13:57:12,921 INFO train: iter: 3500, lr: 0.001000, ave loss: 1.02457234272
+2017-03-21 13:57:12,922 INFO 	loss: 1.024572
+2017-03-21 13:57:12,922 INFO 	accuracy_top1: 0.635828
+2017-03-21 13:57:13,048 INFO val: iter: 3500, lr: 0.001000, ave loss: 1.00335266367
+2017-03-21 13:57:13,049 INFO 	loss: 1.003353
+2017-03-21 13:57:13,049 INFO 	accuracy_top1: nan
+2017-03-21 13:57:14,347 INFO train: iter: 3750, lr: 0.001000, ave loss: 1.02036516947
+2017-03-21 13:57:14,347 INFO 	loss: 1.020365
+2017-03-21 13:57:14,347 INFO 	accuracy_top1: 0.639188
+2017-03-21 13:57:15,650 INFO train: iter: 4000, lr: 0.001000, ave loss: 1.00787459338
+2017-03-21 13:57:15,651 INFO 	loss: 1.007875
+2017-03-21 13:57:15,651 INFO 	accuracy_top1: 0.643297
+2017-03-21 13:57:15,789 INFO val: iter: 4000, lr: 0.001000, ave loss: 0.906555309892
+2017-03-21 13:57:15,790 INFO 	loss: 0.906555
+2017-03-21 13:57:15,790 INFO 	accuracy_top1: nan
+2017-03-21 13:57:17,065 INFO train: iter: 4250, lr: 0.001000, ave loss: 0.986999503896
+2017-03-21 13:57:17,065 INFO 	loss: 0.987000
+2017-03-21 13:57:17,065 INFO 	accuracy_top1: 0.650922
+2017-03-21 13:57:18,273 INFO train: iter: 4500, lr: 0.001000, ave loss: 0.983497201473
+2017-03-21 13:57:18,273 INFO 	loss: 0.983497
+2017-03-21 13:57:18,273 INFO 	accuracy_top1: 0.651703
+2017-03-21 13:57:18,396 INFO val: iter: 4500, lr: 0.001000, ave loss: 0.964785766602
+2017-03-21 13:57:18,396 INFO 	loss: 0.964786
+2017-03-21 13:57:18,396 INFO 	accuracy_top1: nan
+2017-03-21 13:57:19,585 INFO train: iter: 4750, lr: 0.001000, ave loss: 0.969804621726
+2017-03-21 13:57:19,586 INFO 	loss: 0.969805
+2017-03-21 13:57:19,586 INFO 	accuracy_top1: 0.657500
+2017-03-21 13:57:20,837 INFO train: iter: 5000, lr: 0.001000, ave loss: 0.972509657383
+2017-03-21 13:57:20,837 INFO 	loss: 0.972510
+2017-03-21 13:57:20,838 INFO 	accuracy_top1: 0.658875
+2017-03-21 13:57:20,970 INFO val: iter: 5000, lr: 0.001000, ave loss: 0.899708903581
+2017-03-21 13:57:20,970 INFO 	loss: 0.899709
+2017-03-21 13:57:20,970 INFO 	accuracy_top1: nan
+2017-03-21 13:57:22,316 INFO train: iter: 5250, lr: 0.001000, ave loss: 0.957061756656
+2017-03-21 13:57:22,316 INFO 	loss: 0.957062
+2017-03-21 13:57:22,316 INFO 	accuracy_top1: 0.662406
+2017-03-21 13:57:23,516 INFO train: iter: 5500, lr: 0.001000, ave loss: 0.951722035363
+2017-03-21 13:57:23,516 INFO 	loss: 0.951722
+2017-03-21 13:57:23,516 INFO 	accuracy_top1: 0.663203
+2017-03-21 13:57:23,645 INFO val: iter: 5500, lr: 0.001000, ave loss: 0.921777902544
+2017-03-21 13:57:23,645 INFO 	loss: 0.921778
+2017-03-21 13:57:23,646 INFO 	accuracy_top1: nan
+2017-03-21 13:57:24,926 INFO train: iter: 5750, lr: 0.001000, ave loss: 0.950741089061
+2017-03-21 13:57:24,927 INFO 	loss: 0.950741
+2017-03-21 13:57:24,927 INFO 	accuracy_top1: 0.664062
+2017-03-21 13:57:26,238 INFO train: iter: 6000, lr: 0.001000, ave loss: 0.948113899767
+2017-03-21 13:57:26,238 INFO 	loss: 0.948114
+2017-03-21 13:57:26,238 INFO 	accuracy_top1: 0.665359
+2017-03-21 13:57:26,360 INFO val: iter: 6000, lr: 0.001000, ave loss: 0.871788296849
+2017-03-21 13:57:26,361 INFO 	loss: 0.871788
+2017-03-21 13:57:26,361 INFO 	accuracy_top1: nan
+2017-03-21 13:57:27,557 INFO train: iter: 6250, lr: 0.001000, ave loss: 0.937643629044
+2017-03-21 13:57:27,557 INFO 	loss: 0.937644
+2017-03-21 13:57:27,557 INFO 	accuracy_top1: 0.670406
+2017-03-21 13:57:28,813 INFO train: iter: 6500, lr: 0.001000, ave loss: 0.932307533905
+2017-03-21 13:57:28,813 INFO 	loss: 0.932308
+2017-03-21 13:57:28,814 INFO 	accuracy_top1: 0.671063
+2017-03-21 13:57:28,946 INFO val: iter: 6500, lr: 0.001000, ave loss: 0.876202969998
+2017-03-21 13:57:28,946 INFO 	loss: 0.876203
+2017-03-21 13:57:28,946 INFO 	accuracy_top1: nan
+2017-03-21 13:57:30,327 INFO train: iter: 6750, lr: 0.001000, ave loss: 0.925171235666
+2017-03-21 13:57:30,327 INFO 	loss: 0.925171
+2017-03-21 13:57:30,327 INFO 	accuracy_top1: 0.676641
+2017-03-21 13:57:31,338 ERROR KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/lizz/parrots/parrots/python/pyparrots/dnn/runner.py", line 177, in run
+    for logs in policy.run():
+  File "/home/lizz/parrots/parrots/python/pyparrots/dnn/flowpolicies/basepolicy.py", line 19, in run
+    for logs in self.iter():
+  File "/home/lizz/parrots/parrots/python/pyparrots/dnn/flowpolicies/iterate.py", line 47, in iter
+    self.flow.iterate()
+KeyboardInterrupt
+2017-03-21 13:57:51,844 INFO connecting pavi service http://pavi.parrotsdnn.org/log
+2017-03-21 13:57:51,879 INFO pavi service connected, instance_id: 377db2ebe3c5498cbcd28095af959cf1
+2017-03-21 13:57:51,896 INFO model name: net1_aug
+2017-03-21 13:57:51,897 DEBUG name: "net1_aug"
+inputs:
+  - { id: data , spec: "Float32(32, 32, 3, _)" }
+  - { id: label, spec: "Uint32(1, _)" }
+params:
+  - { id: conv1.w, spec: "Float32(5, 5, 3, 6)" , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn1.s  , spec: "Float32(6)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.b  , spec: "Float32(6)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn1.h  , spec: "Float32(12)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: conv2.w, spec: "Float32(5, 5, 6, 16)", learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: bn2.s  , spec: "Float32(16)"         , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.b  , spec: "Float32(16)"         , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn2.h  , spec: "Float32(32)"         , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc1.w  , spec: "Float32(400, 120)"   , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc1.b  , spec: "Float32(120, 1)"     , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn3.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn3.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc2.w  , spec: "Float32(120, 84)"    , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc2.b  , spec: "Float32(84, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: bn4.s  , spec: "Float32(1)"          , learning-policy: { init: fill(1), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.b  , spec: "Float32(1)"          , learning-policy: { init: fill(0), lr_mult: 1, decay_mult: 0 } }
+  - { id: bn4.h  , spec: "Float32(2)"          , learning-policy: { init: fill(0), lr_mult: 0, decay_mult: 0 } }
+  - { id: fc.w   , spec: "Float32(84, 10)"     , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc.b   , spec: "Float32(10, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+layers:
+  - { id: conv1, expr: "conv1 = Convolution(data, @conv1.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 6, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn1, expr: "bn1 = BN(conv1, @bn1.s, @bn1.b, @bn1.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu1, expr: "bn1 = ReLU(bn1)" }
+  - { id: pool1, expr: "pool1 = Pooling(bn1)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool1relu, expr: "pool1 = ReLU(pool1)" }
+  - { id: conv2, expr: "conv2 = Convolution(pool1, @conv2.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 16, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: bn2, expr: "bn2 = BN(conv2, @bn2.s, @bn2.b, @bn2.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: relu2, expr: "bn2 = ReLU(bn2)" }
+  - { id: pool2, expr: "pool2 = Pooling(bn2)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool2relu, expr: "pool2 = ReLU(pool2)" }
+  - { id: fc1, expr: "fc1 = FullyConnected(pool2, @fc1.w, @fc1.b)",
+      attrs: {slice_axis: -2, num_output: 120} }
+  - { id: bn3, expr: "bn3 = BN(fc1, @bn3.s, @bn3.b, @bn3.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc1relu, expr: "bn3 = ReLU(bn3)" }
+  - { id: fc2, expr: "fc2 = FullyConnected(bn3, @fc2.w, @fc2.b)",
+      attrs: {slice_axis: -2, num_output: 84} }
+  - { id: bn4, expr: "bn4 = BN(fc2, @bn4.s, @bn4.b, @bn4.h)",
+      attrs: {var_eps: 1e-05, decay: 0.1, moving_average: true, norm_dim: 2, frozen: false} }
+  - { id: fc2relu, expr: "bn4 = ReLU(bn4)" }
+  - { id: fc, expr: "fc = FullyConnected(bn4, @fc.w, @fc.b)",
+      attrs: {slice_axis: -2, num_output: 10} }
+  - { id: loss, expr: "loss = SoftmaxWithLoss(fc, label)",
+      attrs: {axis: 0} }
+  - { id: accuracy_top1, expr: "accuracy_top1 = Accuracy(fc, label)",
+      attrs: {top_k: 1, slice_axis: 0} }
+flows:
+  - { name: main, inputs: [data, label], outputs: [loss, accuracy_top1], losses: [loss * 1, accuracy_top1 * 1] }
+
+2017-03-21 13:57:53,405 INFO train: iter: 250, lr: 0.001000, ave loss: 1.95286955029
+2017-03-21 13:57:53,405 INFO 	loss: 1.952870
+2017-03-21 13:57:53,405 INFO 	accuracy_top1: 0.280438
+2017-03-21 13:57:54,590 INFO train: iter: 500, lr: 0.001000, ave loss: 1.5335040403
+2017-03-21 13:57:54,591 INFO 	loss: 1.533504
+2017-03-21 13:57:54,591 INFO 	accuracy_top1: 0.437219
+2017-03-21 13:57:54,731 INFO val: iter: 500, lr: 0.001000, ave loss: 1.36281288117
+2017-03-21 13:57:54,731 INFO 	loss: 1.362813
+2017-03-21 13:57:54,732 INFO 	accuracy_top1: 0.488300
+2017-03-21 13:57:55,928 INFO train: iter: 750, lr: 0.001000, ave loss: 1.39826287791
+2017-03-21 13:57:55,929 INFO 	loss: 1.398263
+2017-03-21 13:57:55,929 INFO 	accuracy_top1: 0.490984
+2017-03-21 13:57:57,066 INFO train: iter: 1000, lr: 0.001000, ave loss: 1.30540508372
+2017-03-21 13:57:57,066 INFO 	loss: 1.305405
+2017-03-21 13:57:57,066 INFO 	accuracy_top1: 0.528469
+2017-03-21 13:57:57,190 INFO val: iter: 1000, lr: 0.001000, ave loss: 1.16108292937
+2017-03-21 13:57:57,190 INFO 	loss: 1.161083
+2017-03-21 13:57:57,190 INFO 	accuracy_top1: 0.583800
+2017-03-21 13:57:58,359 INFO train: iter: 1250, lr: 0.001000, ave loss: 1.23723531321
+2017-03-21 13:57:58,359 INFO 	loss: 1.237235
+2017-03-21 13:57:58,359 INFO 	accuracy_top1: 0.555422
+2017-03-21 13:57:59,579 INFO train: iter: 1500, lr: 0.001000, ave loss: 1.1966879856
+2017-03-21 13:57:59,579 INFO 	loss: 1.196688
+2017-03-21 13:57:59,579 INFO 	accuracy_top1: 0.570734
+2017-03-21 13:57:59,704 INFO val: iter: 1500, lr: 0.001000, ave loss: 1.08079532087
+2017-03-21 13:57:59,705 INFO 	loss: 1.080795
+2017-03-21 13:57:59,705 INFO 	accuracy_top1: 0.617600
+2017-03-21 13:58:00,987 INFO train: iter: 1750, lr: 0.001000, ave loss: 1.16820406526
+2017-03-21 13:58:00,988 INFO 	loss: 1.168204
+2017-03-21 13:58:00,988 INFO 	accuracy_top1: 0.583219
+2017-03-21 13:58:02,217 INFO train: iter: 2000, lr: 0.001000, ave loss: 1.13172521931
+2017-03-21 13:58:02,217 INFO 	loss: 1.131725
+2017-03-21 13:58:02,217 INFO 	accuracy_top1: 0.594500
+2017-03-21 13:58:02,368 INFO val: iter: 2000, lr: 0.001000, ave loss: 1.033820007
+2017-03-21 13:58:02,368 INFO 	loss: 1.033820
+2017-03-21 13:58:02,368 INFO 	accuracy_top1: 0.630000
+2017-03-21 13:58:03,614 INFO train: iter: 2250, lr: 0.001000, ave loss: 1.10885474113
+2017-03-21 13:58:03,614 INFO 	loss: 1.108855
+2017-03-21 13:58:03,614 INFO 	accuracy_top1: 0.604328
+2017-03-21 13:58:04,807 INFO train: iter: 2500, lr: 0.001000, ave loss: 1.07844136466
+2017-03-21 13:58:04,807 INFO 	loss: 1.078441
+2017-03-21 13:58:04,808 INFO 	accuracy_top1: 0.617812
+2017-03-21 13:58:04,934 INFO val: iter: 2500, lr: 0.001000, ave loss: 0.967968377471
+2017-03-21 13:58:04,935 INFO 	loss: 0.967968
+2017-03-21 13:58:04,935 INFO 	accuracy_top1: 0.661600
+2017-03-21 13:58:06,173 INFO train: iter: 2750, lr: 0.001000, ave loss: 1.06686103421
+2017-03-21 13:58:06,173 INFO 	loss: 1.066861
+2017-03-21 13:58:06,173 INFO 	accuracy_top1: 0.622969
+2017-03-21 13:58:07,484 INFO train: iter: 3000, lr: 0.001000, ave loss: 1.05367746064
+2017-03-21 13:58:07,484 INFO 	loss: 1.053677
+2017-03-21 13:58:07,484 INFO 	accuracy_top1: 0.626844
+2017-03-21 13:58:07,642 INFO val: iter: 3000, lr: 0.001000, ave loss: 0.970977134258
+2017-03-21 13:58:07,643 INFO 	loss: 0.970977
+2017-03-21 13:58:07,643 INFO 	accuracy_top1: 0.660200
+2017-03-21 13:58:08,914 INFO train: iter: 3250, lr: 0.001000, ave loss: 1.02733501776
+2017-03-21 13:58:08,914 INFO 	loss: 1.027335
+2017-03-21 13:58:08,914 INFO 	accuracy_top1: 0.637188
+2017-03-21 13:58:10,156 INFO train: iter: 3500, lr: 0.001000, ave loss: 1.02226513842
+2017-03-21 13:58:10,157 INFO 	loss: 1.022265
+2017-03-21 13:58:10,157 INFO 	accuracy_top1: 0.637516
+2017-03-21 13:58:10,279 INFO val: iter: 3500, lr: 0.001000, ave loss: 0.948654256761
+2017-03-21 13:58:10,279 INFO 	loss: 0.948654
+2017-03-21 13:58:10,280 INFO 	accuracy_top1: 0.667000
+2017-03-21 13:58:11,500 INFO train: iter: 3750, lr: 0.001000, ave loss: 1.00809542462
+2017-03-21 13:58:11,500 INFO 	loss: 1.008095
+2017-03-21 13:58:11,500 INFO 	accuracy_top1: 0.643500
+2017-03-21 13:58:12,678 INFO train: iter: 4000, lr: 0.001000, ave loss: 0.999409152925
+2017-03-21 13:58:12,678 INFO 	loss: 0.999409
+2017-03-21 13:58:12,678 INFO 	accuracy_top1: 0.645000
+2017-03-21 13:58:12,816 INFO val: iter: 4000, lr: 0.001000, ave loss: 0.910526120663
+2017-03-21 13:58:12,817 INFO 	loss: 0.910526
+2017-03-21 13:58:12,817 INFO 	accuracy_top1: 0.680100
+2017-03-21 13:58:14,056 INFO train: iter: 4250, lr: 0.001000, ave loss: 0.98446334359
+2017-03-21 13:58:14,056 INFO 	loss: 0.984463
+2017-03-21 13:58:14,056 INFO 	accuracy_top1: 0.651687
+2017-03-21 13:58:15,341 INFO train: iter: 4500, lr: 0.001000, ave loss: 0.983381981283
+2017-03-21 13:58:15,342 INFO 	loss: 0.983382
+2017-03-21 13:58:15,342 INFO 	accuracy_top1: 0.651828
+2017-03-21 13:58:15,473 INFO val: iter: 4500, lr: 0.001000, ave loss: 0.881862675399
+2017-03-21 13:58:15,474 INFO 	loss: 0.881863
+2017-03-21 13:58:15,474 INFO 	accuracy_top1: 0.695000
+2017-03-21 13:58:16,695 INFO train: iter: 4750, lr: 0.001000, ave loss: 0.965650519624
+2017-03-21 13:58:16,695 INFO 	loss: 0.965651
+2017-03-21 13:58:16,695 INFO 	accuracy_top1: 0.660719
+2017-03-21 13:58:17,900 INFO train: iter: 5000, lr: 0.001000, ave loss: 0.96231697832
+2017-03-21 13:58:17,900 INFO 	loss: 0.962317
+2017-03-21 13:58:17,900 INFO 	accuracy_top1: 0.661516
+2017-03-21 13:58:18,053 INFO val: iter: 5000, lr: 0.001000, ave loss: 0.883242316544
+2017-03-21 13:58:18,053 INFO 	loss: 0.883242
+2017-03-21 13:58:18,054 INFO 	accuracy_top1: 0.688500
+2017-03-21 13:58:19,282 INFO train: iter: 5250, lr: 0.001000, ave loss: 0.956099386647
+2017-03-21 13:58:19,282 INFO 	loss: 0.956099
+2017-03-21 13:58:19,282 INFO 	accuracy_top1: 0.665969
+2017-03-21 13:58:20,545 INFO train: iter: 5500, lr: 0.001000, ave loss: 0.943097554415
+2017-03-21 13:58:20,545 INFO 	loss: 0.943098
+2017-03-21 13:58:20,546 INFO 	accuracy_top1: 0.668109
+2017-03-21 13:58:20,684 INFO val: iter: 5500, lr: 0.001000, ave loss: 0.930659154058
+2017-03-21 13:58:20,684 INFO 	loss: 0.930659
+2017-03-21 13:58:20,684 INFO 	accuracy_top1: 0.676300
+2017-03-21 13:58:21,899 INFO train: iter: 5750, lr: 0.001000, ave loss: 0.94344762747
+2017-03-21 13:58:21,899 INFO 	loss: 0.943448
+2017-03-21 13:58:21,899 INFO 	accuracy_top1: 0.670297
+2017-03-21 13:58:23,164 INFO train: iter: 6000, lr: 0.001000, ave loss: 0.934963599458
+2017-03-21 13:58:23,165 INFO 	loss: 0.934964
+2017-03-21 13:58:23,165 INFO 	accuracy_top1: 0.670250
+2017-03-21 13:58:23,315 INFO val: iter: 6000, lr: 0.001000, ave loss: 0.924656649679
+2017-03-21 13:58:23,315 INFO 	loss: 0.924657
+2017-03-21 13:58:23,315 INFO 	accuracy_top1: 0.679700
+2017-03-21 13:58:24,608 INFO train: iter: 6250, lr: 0.001000, ave loss: 0.92621967417
+2017-03-21 13:58:24,609 INFO 	loss: 0.926220
+2017-03-21 13:58:24,609 INFO 	accuracy_top1: 0.673219
+2017-03-21 13:58:25,898 INFO train: iter: 6500, lr: 0.001000, ave loss: 0.914674238622
+2017-03-21 13:58:25,898 INFO 	loss: 0.914674
+2017-03-21 13:58:25,898 INFO 	accuracy_top1: 0.676578
+2017-03-21 13:58:26,022 INFO val: iter: 6500, lr: 0.001000, ave loss: 0.918233597279
+2017-03-21 13:58:26,022 INFO 	loss: 0.918234
+2017-03-21 13:58:26,022 INFO 	accuracy_top1: 0.677200
+2017-03-21 13:58:27,280 INFO train: iter: 6750, lr: 0.001000, ave loss: 0.915863640219
+2017-03-21 13:58:27,280 INFO 	loss: 0.915864
+2017-03-21 13:58:27,280 INFO 	accuracy_top1: 0.679281
+2017-03-21 13:58:28,574 INFO train: iter: 7000, lr: 0.001000, ave loss: 0.914896012813
+2017-03-21 13:58:28,574 INFO 	loss: 0.914896
+2017-03-21 13:58:28,574 INFO 	accuracy_top1: 0.676984
+2017-03-21 13:58:28,727 INFO val: iter: 7000, lr: 0.001000, ave loss: 0.869530455023
+2017-03-21 13:58:28,728 INFO 	loss: 0.869530
+2017-03-21 13:58:28,728 INFO 	accuracy_top1: 0.692200
+2017-03-21 13:58:29,913 INFO train: iter: 7250, lr: 0.001000, ave loss: 0.909488660127
+2017-03-21 13:58:29,913 INFO 	loss: 0.909489
+2017-03-21 13:58:29,913 INFO 	accuracy_top1: 0.679328
+2017-03-21 13:58:31,124 INFO train: iter: 7500, lr: 0.001000, ave loss: 0.902505639136
+2017-03-21 13:58:31,124 INFO 	loss: 0.902506
+2017-03-21 13:58:31,124 INFO 	accuracy_top1: 0.683516
+2017-03-21 13:58:31,257 INFO val: iter: 7500, lr: 0.001000, ave loss: 0.841364109516
+2017-03-21 13:58:31,258 INFO 	loss: 0.841364
+2017-03-21 13:58:31,258 INFO 	accuracy_top1: 0.709900
+2017-03-21 13:58:32,401 INFO train: iter: 7750, lr: 0.001000, ave loss: 0.903153435066
+2017-03-21 13:58:32,401 INFO 	loss: 0.903153
+2017-03-21 13:58:32,401 INFO 	accuracy_top1: 0.683344
+2017-03-21 13:58:33,610 INFO train: iter: 8000, lr: 0.000100, ave loss: 0.89274418892
+2017-03-21 13:58:33,610 INFO 	loss: 0.892744
+2017-03-21 13:58:33,610 INFO 	accuracy_top1: 0.685953
+2017-03-21 13:58:33,756 INFO val: iter: 8000, lr: 0.000100, ave loss: 0.810407836735
+2017-03-21 13:58:33,756 INFO 	loss: 0.810408
+2017-03-21 13:58:33,757 INFO 	accuracy_top1: 0.719800
+2017-03-21 13:58:35,026 INFO train: iter: 8250, lr: 0.000100, ave loss: 0.867266109169
+2017-03-21 13:58:35,026 INFO 	loss: 0.867266
+2017-03-21 13:58:35,026 INFO 	accuracy_top1: 0.695812
+2017-03-21 13:58:36,276 INFO train: iter: 8500, lr: 0.000100, ave loss: 0.84990742299
+2017-03-21 13:58:36,276 INFO 	loss: 0.849907
+2017-03-21 13:58:36,276 INFO 	accuracy_top1: 0.702125
+2017-03-21 13:58:36,421 INFO val: iter: 8500, lr: 0.000100, ave loss: 0.778703705221
+2017-03-21 13:58:36,421 INFO 	loss: 0.778704
+2017-03-21 13:58:36,421 INFO 	accuracy_top1: 0.731400
+2017-03-21 13:58:37,613 INFO train: iter: 8750, lr: 0.000100, ave loss: 0.840611426055
+2017-03-21 13:58:37,613 INFO 	loss: 0.840611
+2017-03-21 13:58:37,613 INFO 	accuracy_top1: 0.704875
+2017-03-21 13:58:38,818 INFO train: iter: 9000, lr: 0.000100, ave loss: 0.851198763624
+2017-03-21 13:58:38,818 INFO 	loss: 0.851199
+2017-03-21 13:58:38,818 INFO 	accuracy_top1: 0.700109
+2017-03-21 13:58:38,934 INFO val: iter: 9000, lr: 0.000100, ave loss: 0.775297441334
+2017-03-21 13:58:38,934 INFO 	loss: 0.775297
+2017-03-21 13:58:38,934 INFO 	accuracy_top1: 0.731900
+2017-03-21 13:58:40,138 INFO train: iter: 9250, lr: 0.000100, ave loss: 0.8338189051
+2017-03-21 13:58:40,138 INFO 	loss: 0.833819
+2017-03-21 13:58:40,138 INFO 	accuracy_top1: 0.707297
+2017-03-21 13:58:41,295 INFO train: iter: 9500, lr: 0.000100, ave loss: 0.840062418178
+2017-03-21 13:58:41,296 INFO 	loss: 0.840062
+2017-03-21 13:58:41,296 INFO 	accuracy_top1: 0.703641
+2017-03-21 13:58:41,418 INFO val: iter: 9500, lr: 0.000100, ave loss: 0.778104383498
+2017-03-21 13:58:41,418 INFO 	loss: 0.778104
+2017-03-21 13:58:41,418 INFO 	accuracy_top1: 0.731900
+2017-03-21 13:58:42,695 INFO train: iter: 9750, lr: 0.000100, ave loss: 0.839473164767
+2017-03-21 13:58:42,695 INFO 	loss: 0.839473
+2017-03-21 13:58:42,695 INFO 	accuracy_top1: 0.705031
+2017-03-21 13:58:43,942 INFO train: iter: 10000, lr: 0.000010, ave loss: 0.837045052409
+2017-03-21 13:58:43,942 INFO 	loss: 0.837045
+2017-03-21 13:58:43,942 INFO 	accuracy_top1: 0.704859
+2017-03-21 13:58:44,075 INFO val: iter: 10000, lr: 0.000010, ave loss: 0.779037066549
+2017-03-21 13:58:44,075 INFO 	loss: 0.779037
+2017-03-21 13:58:44,075 INFO 	accuracy_top1: 0.731400
+2017-03-21 13:58:45,325 INFO train: iter: 10250, lr: 0.000010, ave loss: 0.83842196551
+2017-03-21 13:58:45,325 INFO 	loss: 0.838422
+2017-03-21 13:58:45,325 INFO 	accuracy_top1: 0.703562
+2017-03-21 13:58:46,511 INFO train: iter: 10500, lr: 0.000010, ave loss: 0.825067255542
+2017-03-21 13:58:46,511 INFO 	loss: 0.825067
+2017-03-21 13:58:46,511 INFO 	accuracy_top1: 0.712047
+2017-03-21 13:58:46,655 INFO val: iter: 10500, lr: 0.000010, ave loss: 0.76965072602
+2017-03-21 13:58:46,656 INFO 	loss: 0.769651
+2017-03-21 13:58:46,656 INFO 	accuracy_top1: 0.734200
+2017-03-21 13:58:47,950 INFO train: iter: 10750, lr: 0.000010, ave loss: 0.827759934932
+2017-03-21 13:58:47,951 INFO 	loss: 0.827760
+2017-03-21 13:58:47,951 INFO 	accuracy_top1: 0.709969
+2017-03-21 13:58:49,252 INFO train: iter: 11000, lr: 0.000010, ave loss: 0.829054608405
+2017-03-21 13:58:49,252 INFO 	loss: 0.829055
+2017-03-21 13:58:49,253 INFO 	accuracy_top1: 0.709313
+2017-03-21 13:58:49,412 INFO val: iter: 11000, lr: 0.000010, ave loss: 0.772398708761
+2017-03-21 13:58:49,412 INFO 	loss: 0.772399
+2017-03-21 13:58:49,412 INFO 	accuracy_top1: 0.734100
+2017-03-21 13:58:50,668 INFO train: iter: 11250, lr: 0.000010, ave loss: 0.839186666384
+2017-03-21 13:58:50,669 INFO 	loss: 0.839187
+2017-03-21 13:58:50,669 INFO 	accuracy_top1: 0.707703
+2017-03-21 13:58:51,832 INFO train: iter: 11500, lr: 0.000010, ave loss: 0.828599107265
+2017-03-21 13:58:51,833 INFO 	loss: 0.828599
+2017-03-21 13:58:51,833 INFO 	accuracy_top1: 0.708844
+2017-03-21 13:58:51,953 INFO val: iter: 11500, lr: 0.000010, ave loss: 0.768653938174
+2017-03-21 13:58:51,953 INFO 	loss: 0.768654
+2017-03-21 13:58:51,954 INFO 	accuracy_top1: 0.736100
+2017-03-21 13:58:53,159 INFO train: iter: 11750, lr: 0.000010, ave loss: 0.830970069394
+2017-03-21 13:58:53,159 INFO 	loss: 0.830970
+2017-03-21 13:58:53,159 INFO 	accuracy_top1: 0.708453
+2017-03-21 13:58:54,383 INFO train: iter: 12000, lr: 0.000010, ave loss: 0.830161459997
+2017-03-21 13:58:54,383 INFO 	loss: 0.830161
+2017-03-21 13:58:54,383 INFO 	accuracy_top1: 0.709344
+2017-03-21 13:58:54,511 INFO val: iter: 12000, lr: 0.000010, ave loss: 0.771321056038
+2017-03-21 13:58:54,512 INFO 	loss: 0.771321
+2017-03-21 13:58:54,512 INFO 	accuracy_top1: 0.736000

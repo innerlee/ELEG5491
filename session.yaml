@@ -1,0 +1,91 @@
+model:
+    py: net.py
+    args:
+        name: net1_aug
+
+work_dir: runs/net1_aug
+snapshot_interval: 0
+
+init_missing: true
+
+# train 50000, test 10000
+# 1 epoch = 200 iter when bs=256
+max_iter: 12000
+
+epoch:
+    - flow: train
+      policy: iterate
+      args:
+          iter_num: 500
+          log_interval: 250
+          log_vars: &outputs [loss, accuracy_top1]
+
+    - flow: val
+      policy: iterate
+      args:
+          iter_num: 10
+          log_vars: *outputs
+
+flows:
+    - train:
+        spec: &flow
+            inputs: [data, label]
+            outputs: *outputs
+            losses: [loss]
+        batch_size: 256
+        devices: &dev gpu(0:8)
+        learn:
+            lr: 0.001
+            min_lr: 0.00001
+            weight_decay: 0.0005
+            lr_policy: multistep(0.1, 8000, 10000)
+            updater:
+                type: sgd
+                momentum: 0.9
+
+        feeder:
+            num_thread: 20
+            pipeline:
+                - {expr: "data, label = caffe_lmdb()",
+                    attr: {
+                      source: "/mnt/gv7/dataset/cifar10/cifar10_bgr_train_lmdb",
+                      shuffle: true,
+                      shuffle_first_epoch: true,
+                      shuffle_epoch_num: 10
+                    }}
+                # - {expr: data = decode(data) }
+                - {expr: data = pad(data), attr: { pad_size: 4 } }
+                - {expr: "data = crop(data)",
+                    attr: {mode: random_crop,
+                           crop_size: 32,
+                           fix_corner: false} }
+                - {expr: data = flip(data) }
+                - {expr: data = scaleOffset(data), attr: {offset: [114, 123, 125]} }
+
+    - val:
+        spec: *flow
+        batch_size: 1000
+        devices: *dev
+        feeder:
+            num_thread: 20
+            pipeline:
+                - {expr: "data, label = caffe_lmdb()",
+                    attr: {
+                      source: "/mnt/gv7/dataset/cifar10/cifar10_bgr_test_lmdb",
+                      shuffle: false,
+                    }}
+                # - {expr: data = decode(data) }
+                - {expr: data = scaleOffset(data), attr: {offset: [114, 123, 125]} }
+
+loggers:
+    - type: local
+    - type: pavi
+      args:
+        url: "http://pavi.parrotsdnn.org/log"
+        username: lizz
+        password: 123456
+
+record_best:
+    val_flow: val
+    field: accuracy_top1
+    factor: -1

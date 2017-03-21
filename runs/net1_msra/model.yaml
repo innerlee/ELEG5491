@@ -1,0 +1,40 @@
+name: "net1_msra"
+inputs:
+  - { id: data , spec: "Float32(32, 32, 3, _)" }
+  - { id: label, spec: "Uint32(1, _)" }
+params:
+  - { id: conv1.w, spec: "Float32(5, 5, 3, 6)" , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: conv2.w, spec: "Float32(5, 5, 6, 16)", learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc1.w  , spec: "Float32(400, 120)"   , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc1.b  , spec: "Float32(120, 1)"     , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: fc2.w  , spec: "Float32(120, 84)"    , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc2.b  , spec: "Float32(84, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+  - { id: fc.w   , spec: "Float32(84, 10)"     , learning-policy: { init: gauss(0.01), lr_mult: 1, decay_mult: 1 } }
+  - { id: fc.b   , spec: "Float32(10, 1)"      , learning-policy: { init: fill(0), lr_mult: 2, decay_mult: 0 } }
+layers:
+  - { id: conv1, expr: "conv1 = Convolution(data, @conv1.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 6, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: relu1, expr: "conv1 = ReLU(conv1)" }
+  - { id: pool1, expr: "pool1 = Pooling(conv1)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool1relu, expr: "pool1 = ReLU(pool1)" }
+  - { id: conv2, expr: "conv2 = Convolution(pool1, @conv2.w)",
+      attrs: {kernel_w: 5, pad_h: 0, hole_w: 1, hole_h: 1, num_output: 16, stride_w: 1, stride_h: 1, pad_w: 0, kernel_h: 5} }
+  - { id: relu2, expr: "conv2 = ReLU(conv2)" }
+  - { id: pool2, expr: "pool2 = Pooling(conv2)",
+      attrs: {kernel_w: 3, pad_h: 0, stride_h: 2, stride_w: 2, mode: max, pad_w: 0, kernel_h: 3} }
+  - { id: pool2relu, expr: "pool2 = ReLU(pool2)" }
+  - { id: fc1, expr: "fc1 = FullyConnected(pool2, @fc1.w, @fc1.b)",
+      attrs: {slice_axis: -2, num_output: 120} }
+  - { id: fc1relu, expr: "fc1 = ReLU(fc1)" }
+  - { id: fc2, expr: "fc2 = FullyConnected(fc1, @fc2.w, @fc2.b)",
+      attrs: {slice_axis: -2, num_output: 84} }
+  - { id: fc2relu, expr: "fc2 = ReLU(fc2)" }
+  - { id: fc, expr: "fc = FullyConnected(fc2, @fc.w, @fc.b)",
+      attrs: {slice_axis: -2, num_output: 10} }
+  - { id: loss, expr: "loss = SoftmaxWithLoss(fc, label)",
+      attrs: {axis: 0} }
+  - { id: accuracy_top1, expr: "accuracy_top1 = Accuracy(fc, label)",
+      attrs: {top_k: 1, slice_axis: 0} }
+flows:
+  - { name: main, inputs: [data, label], outputs: [loss, accuracy_top1], losses: [loss * 1, accuracy_top1 * 1] }

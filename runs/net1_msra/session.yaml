@@ -1,0 +1,64 @@
+epoch:
+- args:
+    iter_num: 500
+    log_interval: 250
+    log_vars: [loss, accuracy_top1]
+  flow: train
+  policy: iterate
+- args:
+    iter_num: 10
+    log_vars: [loss, accuracy_top1]
+  flow: val
+  policy: iterate
+extra:
+  custom_modules: []
+  custom_paths: []
+flows:
+- train:
+    batch_size: 256
+    devices: gpu(0:8)
+    feeder:
+      num_thread: 20
+      pipeline:
+      - attr: {shuffle: true, shuffle_epoch_num: 10, shuffle_first_epoch: true, source: /mnt/gv7/dataset/cifar10/cifar10_bgr_train_lmdb}
+        expr: data, label = caffe_lmdb()
+      - attr:
+          offset: [114, 123, 125]
+          scale: 160
+        expr: data = scaleOffset(data)
+    learn:
+      lr: 0.001
+      lr_policy: multistep(0.1, 8000, 10000)
+      min_lr: 1.0e-05
+      updater: {momentum: 0.9, type: sgd}
+      weight_decay: 0.0005
+    spec:
+      inputs: [data, label]
+      losses: [loss]
+      outputs: [loss, accuracy_top1]
+- val:
+    batch_size: 1000
+    devices: gpu(0:8)
+    feeder:
+      num_thread: 20
+      pipeline:
+      - attr: {shuffle: false, source: /mnt/gv7/dataset/cifar10/cifar10_bgr_test_lmdb}
+        expr: data, label = caffe_lmdb()
+      - attr:
+          offset: [114, 123, 125]
+          scale: 150
+        expr: data = scaleOffset(data)
+    spec:
+      inputs: [data, label]
+      losses: [loss]
+      outputs: [loss, accuracy_top1]
+init_missing: true
+loggers:
+- {type: local}
+- args: {password: 123456, url: 'http://pavi.parrotsdnn.org/log', username: lizz}
+  type: pavi
+max_iter: 12000
+model: {yaml: model.yaml}
+record_best: {factor: -1, field: accuracy_top1, val_flow: val}
+snapshot_interval: 0
+work_dir: /home/lizz/hw/runs/net1_msra
