@@ -4,7 +4,7 @@ All models are trained using [``Parrots``](http://parrotsdnn.org/).
 
 ## Network structures
 
-* Original: [code](net.original.py), [pdf](net.original.pdf).
+* Original: [code](net.original.py), [pdf](net.original.pdf), [yaml](net.yaml).
 * With msra init: [code](net.msra.py), [pdf](net.msra.pdf).
 * With BN: [code](net.bn.py), [pdf](net.bn.pdf)
 
