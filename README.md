@@ -16,10 +16,10 @@ Note: See [runs](runs) folder for training logs.
 Note: access to the links are restricted to campus networks.
 
 * [Original](http://pavi.goforget.com/Home/Monitor/3437) ([model](runs/net1/model.yaml), [session](runs/net1/session.yaml))
-* [No weight decay](http://pavi.goforget.com/Home/Monitor/3438) [model](runs/net1_no_weight_decay/model.yaml), [session](runs/net1_no_weight_decay/session.yaml))
-* [Msra](http://pavi.goforget.com/Home/Monitor/3446) [model](runs/net1_msra/model.yaml), [session](runs/net1_msra/session.yaml))
-* [BN](http://pavi.goforget.com/Home/Monitor/3453) [model](runs/net1_bn/model.yaml), [session](runs/net1_bn/session.yaml))
-* [Augmentation](http://pavi.goforget.com/Home/Monitor/3457) [model](runs/net1_aug/model.yaml), [session](runs/net1_aug/session.yaml))
+* [No weight decay](http://pavi.goforget.com/Home/Monitor/3438) ([model](runs/net1_no_weight_decay/model.yaml), [session](runs/net1_no_weight_decay/session.yaml))
+* [Msra](http://pavi.goforget.com/Home/Monitor/3446) ([model](runs/net1_msra/model.yaml), [session](runs/net1_msra/session.yaml))
+* [BN](http://pavi.goforget.com/Home/Monitor/3453) ([model](runs/net1_bn/model.yaml), [session](runs/net1_bn/session.yaml))
+* [Augmentation](http://pavi.goforget.com/Home/Monitor/3457) ([model](runs/net1_aug/model.yaml), [session](runs/net1_aug/session.yaml))
 
 ## Comparisons
 
