@@ -108,7 +108,6 @@ TEMP_FILE = joinpath(tempdir(), tempname())
 run(`cp gan1d.jl $TEMP_FILE`)
 
 # hyper parameters
-MAX_ITER = 5000
 ITER_G   = 1
 ITER_D   = ITER_G
 BS       = 256
