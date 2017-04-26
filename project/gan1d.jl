@@ -2,7 +2,6 @@
 # usage: ./gan1d.jl -g 0:2 -z uniform -x gaussian 100
 using ArgParse
 using Distributions
-using HDF5
 using Iterators
 using KernelDensity
 using Parrots
@@ -11,7 +10,7 @@ using ProgressMeter
 
 # auxilary
 import_ppl_layers()
-# rd, wr = redirect_stderr()
+rd, wr = redirect_stderr()
 forward_backward_update(f) = (forward(f); backward(f); update_param(f))
 activation_name(l) = lowercase(split(string(l), ".")[end])
 zip_align_first(a, b...) = zip(a, cycle.([b...])...)
@@ -109,12 +108,13 @@ TEMP_FILE = joinpath(tempdir(), tempname())
 run(`cp gan1d.jl $TEMP_FILE`)
 
 # hyper parameters
+MAX_ITER = 5000
 ITER_G   = 1
 ITER_D   = ITER_G
 BS       = 256
+VAL_BS   = 10000
 INIT_LR  = 0.001
 DEVICE   = "gpu()"
-H5FILE   = ""
 
 immutable FCNStructure
     usebn
@@ -195,24 +195,12 @@ function build_model_and_session(z_data, x_data, G_cfg, D_cfg)
         "inputs"       => ["z", "z_label"],
         "outputs"      => ["D_loss_z_fake"],
         "losses"       => ["D_loss_z_fake"],
-        "barriers"     => ["gen"]),
-        "feeder" => Dict("pipeline" => [Dict(
-            "expr" => "z, z_label = hdf5()",
-            "attr" => Dict(
-                "files" => ["d_fake.h5"],
-                "vars" => ["z", "z_label"],
-                "shuffle" => true))]))
+        "barriers"     => ["gen"]))
     G_flow_spec = Dict("spec" => Dict(
         "inputs"       => ["z", "z_label"],
         "outputs"      => ["G_loss_z"],
         "losses"       => ["G_loss_z"],
-        "fixed_params" => tofix_D_real),
-        "feeder" => Dict("pipeline" => [Dict(
-            "expr" => "z, z_label = hdf5()",
-            "attr" => Dict(
-                "files" => ["g.h5"],
-                "vars" => ["z", "z_label"],
-                "shuffle" => true))]))
+        "fixed_params" => tofix_D_real))
 
     optim_cfg = Dict(
         "lr"           => INIT_LR,
@@ -229,17 +217,11 @@ function build_model_and_session(z_data, x_data, G_cfg, D_cfg)
         "feeder"     => Dict("type" => "dummy"))
     common_learn_cfg = merge(common_cfg,       Dict("learn" => optim_cfg))
     main_flow_cfg    = merge(common_learn_cfg, Dict("spec"  => "main"))
-    D_real_flow_cfg  = merge(common_learn_cfg, Dict("spec"  => "D_real",
-        "feeder" => Dict("pipeline" => [Dict(
-            "expr" => "x, x_label = hdf5()",
-            "attr" => Dict(
-                "files" => ["d_real.h5"],
-                "vars" => ["x", "x_label"],
-                "shuffle" => true))])))
+    D_real_flow_cfg  = merge(common_learn_cfg, Dict("spec"  => "D_real"))
     D_fake_flow_cfg  = merge(common_learn_cfg, D_fake_flow_spec)
     G_flow_cfg       = merge(common_learn_cfg, G_flow_spec)
-    G_val_flow_cfg   = merge(common_cfg,       Dict("spec"  => "G_val", "batch_size" => 10BS))
-    D_val_flow_cfg   = merge(common_cfg,       Dict("spec"  => "D_val", "batch_size" => 10BS))
+    G_val_flow_cfg   = merge(common_cfg,       Dict("spec"  => "G_val", "batch_size" => VAL_BS))
+    D_val_flow_cfg   = merge(common_cfg,       Dict("spec"  => "D_val", "batch_size" => VAL_BS))
 
     # session
     s = Session(m)
@@ -260,11 +242,26 @@ end
 # iterate
 function iter(s, z_data, x_data, bs=BS)
     for i in 1:ITER_D
-        flow(f -> Parrots.iterate(f), s, "D_real")
-        flow(f -> Parrots.iterate(f), s, "D_fake")
+        flow(s, "D_real") do f
+            set_input(f, "x", x_data.sample(bs))
+            set_input(f, "x_label", ones(1, bs))
+            forward_backward_update(f)
+        end
+
+        flow(s, "D_fake") do f
+            set_input(f, "z", z_data.sample(bs))
+            set_input(f, "z_label", zeros(1, bs))
+            forward_backward_update(f)
+        end
     end
 
-    foreach(s -> flow(f -> Parrots.iterate(f), s, "G"), fill(s, ITER_G))
+    for i in 1:ITER_G
+        flow(s, "G") do f
+            set_input(f, "z", z_data.sample(bs))
+            set_input(f, "z_label", ones(1, bs))
+            forward_backward_update(f)
+        end
+    end
 end
 
 iter(a) = iter(a...)
@@ -284,19 +281,19 @@ function train(s, z_data, x_data, iters=1)
 
     # data dist, gen dist, discrimination value
     if x_data.dim == 1
-        data_x = linspace(x_data.lb, x_data.ub, 1000)'
+        data_x = linspace(x_data.lb, x_data.ub, VAL_BS)'
         fc     = exp.(evaluate(s, data_x, "D_val", "x", "real_fc"))
         prob   = fc ./ (1 .+ fc)
         p1     = plot(data_x[:], prob[:], label="discriminator",
                     xlim=[x_lb, x_ub], ylim=[0,2])
 
-        data_z = z_data.sample(1000)
+        data_z = z_data.sample(VAL_BS)
         gen    = vec(evaluate(s, data_z, "G_val", "z", "gen"))
         ik     = InterpKDE(kde_lscv(gen))
-        pts    = linspace(x_lb, x_ub, 1000)
+        pts    = linspace(x_lb, x_ub, VAL_BS)
         plot!(p1, pts, pdf(ik, pts), label="generator")
 
-        data_x = vec(x_data.sample(1000))
+        data_x = vec(x_data.sample(VAL_BS))
         ik     = InterpKDE(kde_lscv(data_x))
         plot!(p1, pts, pdf(ik, pts), label="data, $(x_data.name)",
                     title="$(now())", titlefont=font(10))
@@ -304,36 +301,36 @@ function train(s, z_data, x_data, iters=1)
         data_x = grid_pts(x_data)
         fc     = vec(exp.(evaluate(s, data_x, "D_val", "x", "real_fc")))
         prob   = fc ./ (1 .+ fc)
-        p0     = surface(data_x[1, :], data_x[2, :], prob, title="discriminator",
+        p0     = surface(data_x[1, :], data_x[2, :], prob, #title="discriminator",
                     color=:viridis, alpha=0.3, legend=false, titlefont=font(10),
                     xlim=[x_lb[1], x_ub[1]], ylim=[x_lb[2], x_ub[2]], zlim=[0,1.1])
+
+        xy     = grid_pts(x_data)
+        data_x = x_data.sample(VAL_BS)
+        ik     = InterpKDE(kde((data_x[1, :], data_x[2, :])))
+        surface!(p0, xy[1, :], xy[2, :], pdf.([ik], xy[1, :], xy[2, :]), title="data, $(x_data.name)",
+                    color=:plasma, alpha=0.2, legend=false, titlefont=font(10),
+                    xlim=[x_lb[1], x_ub[1]], ylim=[x_lb[2], x_ub[2]], zlim=[0,2])
         push!(plots, p0)
 
-        data_z = z_data.sample(1000)
+        data_z = z_data.sample(VAL_BS)
         gen    = evaluate(s, data_z, "G_val", "z", "gen")
         ik     = InterpKDE(kde((gen[1, :], gen[2, :])))
-        xy     = grid_pts(x_data)
-        p1 = surface(xy[1, :], xy[2, :], pdf.([ik], xy[1, :], xy[2, :]),
-                    color=:inferno, alpha=0.2, legend=false, #label="Generator"
-                    xlim=[x_lb[1], x_ub[1]], ylim=[x_lb[2], x_ub[2]], zlim=[0,2])
-
-        data_x = x_data.sample(1000)
-        ik     = InterpKDE(kde((data_x[1, :], data_x[2, :])))
-        surface!(p1, xy[1, :], xy[2, :], pdf.([ik], xy[1, :], xy[2, :]), title="data, $(x_data.name)",
-                    color=:plasma, alpha=0.2, legend=false, titlefont=font(10),
+        p1 = surface(xy[1, :], xy[2, :], pdf.([ik], xy[1, :], xy[2, :]), titlefont=font(10),
+                    color=:inferno, alpha=0.2, legend=false, title="generator",
                     xlim=[x_lb[1], x_ub[1]], ylim=[x_lb[2], x_ub[2]], zlim=[0,2])
     end
     push!(plots, p1)
 
     # latent dist
     if z_data.dim == 1
-        data_z = vec(z_data.sample(1000))
+        data_z = vec(z_data.sample(VAL_BS))
         ik     = InterpKDE(kde_lscv(data_z))
-        pts    = linspace(z_lb, z_ub, 1000)
+        pts    = linspace(z_lb, z_ub, VAL_BS)
         p2     = plot(pts, pdf(ik, pts), legend=false, xlim=[z_lb, z_ub], ylim=[0,2],
                     title="latent, $(z_data.name)", titlefont=font(10))
     elseif z_data.dim == 2
-        data_z = z_data.sample(1000)
+        data_z = z_data.sample(VAL_BS)
         ik     = InterpKDE(kde((data_z[1, :], data_z[2, :])))
         xy     = grid_pts(z_data)
         p2     = surface(xy[1, :], xy[2, :], pdf.([ik], xy[1, :], xy[2, :]), legend=false,
@@ -344,7 +341,7 @@ function train(s, z_data, x_data, iters=1)
     push!(plots, p2)
 
     # generated dist
-    data_z = z_data.sample(1000)
+    data_z = z_data.sample(VAL_BS)
     gen    = evaluate(s, data_z, "G_val", "z", "gen")
     if x_data.dim == 1
         p3 = scatter(vec(gen), [0], xlim=[x_lb, x_ub], ylim=[-1,1], legend=false,
@@ -359,7 +356,7 @@ function train(s, z_data, x_data, iters=1)
     # mapping z -> x
     margin = (x_data.ub - x_data.lb) / 5
     if z_data.dim == 1
-        data_z = z_data.sample(1000)
+        data_z = z_data.sample(VAL_BS)
         gen    = evaluate(s, data_z, "G_val", "z", "gen")
         if x_data.dim == 1
             p4 = scatter(vec(data_z), vec(gen), xlim=[z_lb, z_ub], ylim=[x_lb, x_ub],
@@ -441,12 +438,12 @@ function main()
                 help     = """distribution for latent space z:
                               \n$(join(keys(dataset), "\n"))"""
                 arg_type = String
-                default  = "gauss_gauss"
+                default  = "uniform"
             "--data", "-x"
                 help     = """distribution for data space x:
                               \n$(join(keys(dataset), "\n"))"""
                 arg_type = String
-                default  = "patch3x3"
+                default  = "uniform"
             "steps"
                 help     = "how many steps (1 step = 100 iteration) to run"
                 arg_type = Int
