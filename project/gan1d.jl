@@ -4,13 +4,34 @@ using ArgParse
 using Distributions
 using Iterators
 using KernelDensity
+using Memento
 using Parrots
 using Plots
 using ProgressMeter
+import PyPlot
+
+# hyper parameters
+ITER_G   = 1
+ITER_D   = ITER_G
+BS       = 256
+VAL_BS   = 10000
+INIT_LR  = 0.001
+FRAME    = 100
+DEVICE   = "gpu()"
+
+# add procs
+addprocs()
+@everywhere rd, wr = redirect_stderr()
+@everywhere using Plots
+pmap((i) -> (plot(rand(10)); i), workers())
+
+# logging
+logger = get_logger(current_module())
+remove_handler(logger, "console")
+set_level(logger, "debug")
 
 # auxilary
 import_ppl_layers()
-rd, wr = redirect_stderr()
 forward_backward_update(f) = (forward(f); backward(f); update_param(f))
 activation_name(l) = lowercase(split(string(l), ".")[end])
 zip_align_first(a, b...) = zip(a, cycle.([b...])...)
@@ -63,14 +84,15 @@ const dataset = Dict(
                 r = rand(Uniform(-pi, pi), 1, bs)
                 vcat(cos.(r), sin.(r))
             end),
+    "halfsphere1" => GANData("halfsphere1",
+        2, fill(-1.5, 2), fill(1.5, 2), (bs) -> begin
+                r = rand(Uniform(-pi, pi), 1, bs)
+                vcat(abs.(cos.(r)), sin.(r))
+            end),
     "fourleaves" => GANData("fourleaves",
         2, fill(-3, 2), fill(3, 2), (bs) -> gen_leaves(4, 1, bs)),
-    "fiveleaves" => GANData("fiveleaves",
-        2, fill(-3, 2), fill(3, 2), (bs) -> gen_leaves(5, 0.5, bs)),
-    "elevenleavescross" => GANData("elevenleavescross",
-        2, fill(-3, 2), fill(3, 2), (bs) -> gen_leaves(11, 1, bs)),
     "elevenleaves" => GANData("elevenleaves",
-        2, fill(-3, 2), fill(3, 2), (bs) -> gen_leaves(11, 0.3, bs)),
+        2, fill(-3, 2), fill(3, 2), (bs) -> gen_leaves(11, 1, bs)),
     "gauss_uniform" => GANData("gauss_uniform",
         2, [-4, -0.5], [4, 1.5], (bs) -> vcat(rand(Normal(), 1, bs), rand(1, bs))),
     "gauss_gauss" => GANData("gauss_gauss",
@@ -82,38 +104,20 @@ const dataset = Dict(
                 t = rand(Uniform(0, pi), 1, bs)
                 vcat(t.*cos(5t), t.*sin(5t))
             end),
-    "spirall" => GANData("spirall",
-        2, [-3, -3], [3, 3], (bs) -> begin
-                t = rand(Uniform(0, pi), 1, bs)
-                vcat(t.*cos(10t), t.*sin(10t))
-            end),
     "lattice3x3" => GANData("lattice3x3",
         2, [-1.5, -1.5], [1.5, 1.5], (bs) -> rand(linspace(-1, 1, 3), 2, bs)),
-    "lattice5x5" => GANData("lattice5x5",
-        2, [-1.5, -1.5], [1.5, 1.5], (bs) -> rand(linspace(-1, 1, 5), 2, bs)),
     "patch3x3" => GANData("patch3x3",
         2, [-1.5, -1.5], [1.5, 1.5], (bs) ->
-            rand(Uniform(-1/(3*3), 1/(3*3)), 2, bs) + rand(linspace(-1, 1, 3), 2, bs)),
-    "patch5x5" => GANData("patch5x5",
-        2, [-1.5, -1.5], [1.5, 1.5], (bs) ->
-            rand(Uniform(-1/(3*5), 1/(3*5)), 2, bs) + rand(linspace(-1, 1, 5), 2, bs)),
+            rand(Uniform(-1/(3*2), 1/(3*2)), 2, bs) + rand(linspace(-1, 1, 3), 2, bs)),
     )
 
-# for z in "lattice3x3" "patch3x3"
-# for x in "fourleaves" "elevenleavescross" "gauss_uniform" "gauss_gauss" "uniform_uniform" "spiral" "lattice3x3" "patch3x3"
-# echo z: $z, x: $x && ./gan1d.jl -g 0:2 -z $z -x $x 200
+# for z in "sphere1" "halfsphere1" "fourleaves" "elevenleaves" "gauss_uniform" "gauss_gauss" "uniform_uniform" "spiral" "lattice3x3" "patch3x3"
+# for x in  "sphere1" "halfsphere1" "fourleaves" "elevenleaves" "gauss_uniform" "gauss_gauss" "uniform_uniform" "spiral" "lattice3x3" "patch3x3"
+# echo z: $z, x: $x && ./gan1d.jl -g 0 -n 200 -z $z -x $x 150
 
 # backup this file
 TEMP_FILE = joinpath(tempdir(), tempname())
 run(`cp gan1d.jl $TEMP_FILE`)
-
-# hyper parameters
-ITER_G   = 1
-ITER_D   = ITER_G
-BS       = 256
-VAL_BS   = 10000
-INIT_LR  = 0.001
-DEVICE   = "gpu()"
 
 immutable FCNStructure
     usebn
@@ -204,7 +208,7 @@ function build_model_and_session(z_data, x_data, G_cfg, D_cfg)
     optim_cfg = Dict(
         "lr"           => INIT_LR,
         "weight_decay" => 0.0005,
-        "lr_policy"    => "step(0.98, 300)",
+        "lr_policy"    => "step(0.98, 100)",
         "updater"      => Dict(
             "type"      => "rmsprop",
             "rms_eps"   => 1,
@@ -308,8 +312,8 @@ function train(s, z_data, x_data, iters=1)
         data_x = x_data.sample(VAL_BS)
         ik     = InterpKDE(kde((data_x[1, :], data_x[2, :])))
         surface!(p0, xy[1, :], xy[2, :], pdf.([ik], xy[1, :], xy[2, :]), title="data, $(x_data.name)",
-                    color=:plasma, alpha=0.2, legend=false, titlefont=font(10),
-                    xlim=[x_lb[1], x_ub[1]], ylim=[x_lb[2], x_ub[2]], zlim=[0,2])
+                    color=:plasma, alpha=0.5, legend=false, titlefont=font(10),
+                    xlim=[x_lb[1], x_ub[1]], ylim=[x_lb[2], x_ub[2]], zlim=[0,1])
         push!(plots, p0)
 
         data_z = z_data.sample(VAL_BS)
@@ -334,13 +338,14 @@ function train(s, z_data, x_data, iters=1)
         xy     = grid_pts(z_data)
         p2     = surface(xy[1, :], xy[2, :], pdf.([ik], xy[1, :], xy[2, :]), legend=false,
                     color=:plasma, alpha=0.5,
-                    xlim=[z_lb[1], z_ub[1]], ylim=[z_lb[2], z_ub[2]], zlim=[0,2],
+                    xlim=[z_lb[1], z_ub[1]], ylim=[z_lb[2], z_ub[2]], zlim=[0,1],
                     title="latent, $(z_data.name)", titlefont=font(10))
     end
     push!(plots, p2)
 
     # generated dist
     data_z = z_data.sample(VAL_BS)
+    data_x = x_data.sample(VAL_BS)
     gen    = evaluate(s, data_z, "G_val", "z", "gen")
     if x_data.dim == 1
         p3 = scatter(vec(gen), [0], xlim=[x_lb, x_ub], ylim=[-1,1], legend=false,
@@ -349,8 +354,31 @@ function train(s, z_data, x_data, iters=1)
         p3 = scatter(gen[1, :], gen[2, :], legend=false,
                 xlim=[x_lb[1], x_ub[1]], ylim=[x_lb[2], x_ub[2]],
                 marker=(2,0.1,stroke(0)), title="generated manifold", titlefont=font(10))
+        pts    = linspace(x_lb[1], x_ub[1], VAL_BS)
+        ik     = InterpKDE(kde_lscv(data_x[1,:]))
+        p6     = plot(pts, pdf(ik, pts), xlim=[x_lb[1], x_ub[1]], ylim=[0,2],
+                    label="data_1", titlefont=font(10))
+        ik     = InterpKDE(kde_lscv(gen[1,:]))
+        p6     = plot!(p6, pts, pdf(ik, pts), xlim=[x_lb[1], x_ub[1]], ylim=[0,2],
+                    label="gen_1", titlefont=font(10))
+        push!(plots, p6)
+        pts    = linspace(x_lb[2], x_ub[2], VAL_BS)
+        ik     = InterpKDE(kde_lscv(data_x[2,:]))
+        p7     = plot(pts, pdf(ik, pts), xlim=[x_lb[2], x_ub[2]], ylim=[0,2],
+                    label="data_2", titlefont=font(10))
+        ik     = InterpKDE(kde_lscv(gen[2,:]))
+        p7     = plot!(p7, pts, pdf(ik, pts), xlim=[x_lb[2], x_ub[2]], ylim=[0,2],
+                    label="gen_2", titlefont=font(10))
+        push!(plots, p7)
     end
     push!(plots, p3)
+
+    if z_data.dim == 2
+        p8 = scatter(data_z[1, :], data_z[2, :], legend=false,
+                xlim=[z_lb[1], z_ub[1]], ylim=[z_lb[2], z_ub[2]],
+                marker=(2,0.1,stroke(0)), title="latent manifold", titlefont=font(10))
+        push!(plots, p8)
+    end
 
     # mapping z -> x
     margin = (x_data.ub - x_data.lb) / 5
@@ -389,8 +417,8 @@ function train(s, z_data, x_data, iters=1)
         end
     end
 
-    plot(plots...)
-    num_iter
+    p = plot(plots..., size=(1200,800))
+    num_iter, p
 end
 
 # network inference
@@ -412,15 +440,29 @@ end
 
 # train and draw mp4
 function anim(s, n, z_data, x_data)
+    runfolder = joinpath("runs", "$(replace(string(now()), ":", "."))_z_$(z_data.name)_x_$(x_data.name)")
+    imgfolder = joinpath(runfolder, "img")
+    mkpath(imgfolder)
+    cp(TEMP_FILE, joinpath(runfolder, "code.jl"))
+    w = cycle(workers())
+    state = start(w)
+    remove_handler(logger, "file-logging")
+    add_handler(logger, DefaultHandler(joinpath(runfolder, "bf.log"),
+        DefaultFormatter("[{date} | {level}]: {msg}")), "file-logging")
     p = Progress(n; dt=1, desc="Training: ", output=STDOUT, barlen=30)
-    @time a = @animate for i in 1:n
-       num_iter = train(s, z_data, x_data, 100)
-       next!(p, showvalues=[(:(iter), num_iter)])
+    plts = []
+    waits = []
+    for i in 1:n
+        num_iter, plt = train(s, z_data, x_data, FRAME)
+        push!(plts, plt)
+        pid, state = next(w, state)
+        push!(waits, remotecall((plt, f) -> (plot(plt); savefig(f); nothing), pid,
+            plt, joinpath(imgfolder, "$(lpad(num_iter, 8, 0)).png")))
+        next!(p, showvalues=[(:(iter), num_iter)])
     end
-    p4 = mp4(a).filename
-    filename = "runs/$(rpad(now(), 23, 0)).$(GIT_HASH)"
-    cp(p4, "$filename.mp4")
-    cp(TEMP_FILE, "$filename.jl")
+    println("waiting for plots...")
+    fetch.(waits)
+    run(`convert -delay 10 -loop 0 "$runfolder/img/*.png" -alpha off "$runfolder/bf.mp4"`)
 end
 
 # run script from command line
@@ -443,6 +485,10 @@ function main()
                               \n$(join(keys(dataset), "\n"))"""
                 arg_type = String
                 default  = "uniform"
+            "--frame", "-n"
+                help     = """how many iters per frame"""
+                arg_type = Int
+                default  = 100
             "steps"
                 help     = "how many steps (1 step = 100 iteration) to run"
                 arg_type = Int
@@ -450,8 +496,9 @@ function main()
         end
 
         setting = parse_args(s)
-        global DEVICE
+        global DEVICE, FRAME
         DEVICE  = replace(DEVICE, r"\(.*\)", "($(setting["gpu"]))")
+        FRAME   = setting["frame"]
         z_data  = dataset[setting["latent"]]
         x_data  = dataset[setting["data"]]
         m, s    = build_model_and_session(z_data, x_data, G_cfg, D_cfg)
@@ -460,7 +507,20 @@ function main()
         return m, s, z_data, x_data, setting
     catch e
         println(e)
+        println(join(stacktrace(),"\n"))
     end
 end
 
-m, s, z_data, x_data, setting = main()
+function console(gpu, z="fourleaves", x="gauss_uniform")
+    DEVICE = "gpu($gpu)"
+    z_data  = dataset[z]
+    x_data  = dataset[x]
+    m, s    = build_model_and_session(z_data, x_data, G_cfg, D_cfg)
+    m, s, z_data, x_data
+end
+
+if length(ARGS) > 0
+    m, s, z_data, x_data, setting = main()
+else
+    m, s, z_data, x_data = console("0")
+end
