@@ -7,3 +7,5 @@
 [Output Videos](videos/)
 
 [Report](report.pdf)
+
+[Slides](https://docs.google.com/presentation/d/1KNXx13uKANRleGgaXMzISd4Q8PYtH93eQ7k4_Co-ea0/edit?usp=sharing)
