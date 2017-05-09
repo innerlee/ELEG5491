@@ -1,6 +1,8 @@
 # Geometric View of GAN and Visualization
 
-[Code](gan1d.jl) in [`Julia`](https://julialang.org/) using [`Parrots`](http://www.parrotsdnn.org/).
+[Code](gan.jl) in [`Julia`](https://julialang.org/) using [`Parrots`](http://www.parrotsdnn.org/).
+
+[Course Website](http://dl.ee.cuhk.edu.hk/fp/schedule.html)
 
 [Output Images](images/)
 
